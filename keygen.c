@@ -30,7 +30,6 @@ char* generate_key(int key_length){
 }
 
 int main(int argc, void* argv[]){
-    int key_length;
 
     //check if the user input a valid argument for the length of the key
     if(argv[1] == NULL || argv[1] == 0){
@@ -38,9 +37,15 @@ int main(int argc, void* argv[]){
         errno = 5; //error code corresponds to input/output error
         perror("Please enter a valid length that is greater than 0\n");
         return 0;
-    }else{
-        key_length = atoi(argv[1]); //converts the input string to an integer
     }
+    int key_length = atoi(argv[1]); //converts the input string to an integer
+    
+    if(key_length == 0){
+        errno = 5; //error code corresponds to input/output error
+        perror("Please enter a valid integer that is greater than 0\n");
+        return 0;
+    }
+
     char* key = generate_key(key_length); //generates the key
 
     printf(key);
