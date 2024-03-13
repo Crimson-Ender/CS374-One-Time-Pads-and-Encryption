@@ -2,7 +2,7 @@ CC=gcc -std=c99 -g
 
 all: keygen enc_client enc_server dec_client dec_server
 
-keygen: keygen.c keygen.h
+keygen: keygen.c
 	$(CC) keygen.c -o keygen
 
 enc_client: enc_client.c enc_client.h
