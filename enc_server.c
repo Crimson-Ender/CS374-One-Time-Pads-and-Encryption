@@ -5,6 +5,9 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include "enc_server.h"
+
+const char* charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "; 
 
 // Error function used for reporting issues
 void error(const char *msg) {
@@ -24,6 +27,42 @@ void setupAddressStruct(struct sockaddr_in* address, int portNumber){
   address->sin_port = htons(portNumber);
   // Allow a client at any address to connect to this server
   address->sin_addr.s_addr = INADDR_ANY;
+}
+
+char* encrypt_message(char* plaintext, char* key){
+    char* ciphertext = malloc(sizeof(char)*strlen(plaintext));
+    
+    /*
+    printf("DEBUG: Prior to conversion\n");
+    printf("DEBUG: Plaintext == %s\n", plaintext);
+    printf("DEBUG: strlen(plaintext) == %d\n", strlen(plaintext));
+    printf("DEBUG: key == %s\n", key);
+    */
+
+    //convert both the plaintext and key text into numerial values using their ASCII values
+    int i;
+    for(i = 0; i<strlen(plaintext); i++){
+        int pt_val = plaintext[i] - 65;   //ASCII value for 'A' is 65, so we subtract 65 to ensure 'A' is zero
+        if(pt_val == -33){
+            pt_val = 26;  //space's ASCII value is 32, so it would be -33 after subtracting 65 from it
+        }
+        int key_val = key[i] -65;
+        if(key_val == -33){
+            key_val == 26;
+        }
+
+        ciphertext[i] = charset[(pt_val + key_val)%27];
+    }
+
+    /*
+    printf("DEBUG: After conversion\n");
+    printf("DEBUG: Plaintext == %s\n", ciphertext);
+    printf("DEBUG: strlen(plaintext) == %d\n", strlen(plaintext));
+    printf("DEBUG: number of characters conversions == %d\n", i);
+    printf("DEBUG: key == %s\n", key);
+    printf("DEBUG: Ciphertext == %s\n", ciphertext);
+    */
+    return ciphertext;
 }
 
 int main(int argc, char *argv[]){
@@ -63,6 +102,8 @@ int main(int argc, char *argv[]){
       error("ERROR on accept");
     }
 
+    //branch off into a child process
+
     printf("SERVER: Connected to client running at host %d port %d\n", 
                           ntohs(clientAddress.sin_addr.s_addr),
                           ntohs(clientAddress.sin_port));
@@ -74,16 +115,33 @@ int main(int argc, char *argv[]){
     if (charsRead < 0){
       error("ERROR reading from socket");
     }
-    printf("SERVER: I received this from the client: \"%s\"\n", buffer);
 
+    char* plaintext[strlen(buffer)];
+    strcpy(plaintext, buffer);
+    printf("SERVER: I received this from the client: \"%s\"\n", plaintext);
+
+    // Get the message from the client and display it
+    memset(buffer, '\0', 256);
+    // Read the client's message from the socket
+    charsRead = recv(connectionSocket, buffer, 255, 0); 
+    if (charsRead < 0){
+      error("ERROR reading from socket");
+    }
+
+    char* key[strlen(buffer)];
+    strcpy(key, buffer);
+    printf("SERVER: I received this from the client: \"%s\"\n", key);
+
+    char* ciphertext = encrypt_message(plaintext, key);
     // Send a Success message back to the client
-    charsRead = send(connectionSocket, "I am the server, and I got your message", 39, 0); 
+    charsRead = send(connectionSocket, ciphertext, strlen(ciphertext), 0); 
     
     if (charsRead < 0){
       error("ERROR writing to socket");
     }
     // Close the connection socket for this client
-    close(connectionSocket); 
+    close(connectionSocket);
+    free(ciphertext); 
   }
   // Close the listening socket
   close(listenSocket); 
