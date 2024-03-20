@@ -14,6 +14,8 @@
 * 3. Print the message received from the server and exit the program.
 */
 
+const char* id = "enc_client";
+
 // Error function used for reporting issues
 void error(const char *msg) { 
     perror(msg); 
@@ -53,7 +55,7 @@ int main(int argc, char *argv[]) {
 
     int socketFD, portNumber, charsWritten, charsRead;
     struct sockaddr_in serverAddress;
-    char buffer[256];
+    char buffer[150000];
     // Check usage & args
     if (argc < 4) { 
         fprintf(stderr,"USAGE: %s plaintext key port#\n", argv[0]); 
@@ -72,6 +74,18 @@ int main(int argc, char *argv[]) {
     // Connect to server
     if (connect(socketFD, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0){
         error("CLIENT: ERROR connecting");
+    }
+
+    //clear out memory to send the identifier
+    memset(buffer, '\0', sizeof(buffer));
+    strcpy(buffer, id);
+
+    charsWritten = send(socketFD, buffer, strlen(buffer), 0); 
+    if (charsWritten <= 0){
+        error("CLIENT: ERROR writing to socket");
+    }
+    if (charsWritten < strlen(buffer)){
+        printf("CLIENT: WARNING: Not all data written to socket!\n");
     }
 
     FILE* plaintextFD = grab_file(argv[1]);
