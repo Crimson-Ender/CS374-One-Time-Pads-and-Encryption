@@ -10,4 +10,6 @@ dec_client and dec_server operate basically the same as their encryption counter
 
 enc_server and enc_client will both continually in the background as daemons.
 
+There's some issues with sending large files. I ran out of time. Sometimes it works and sometimes it doesn't. Maybe you will get lucky and it does ¯\_(ツ)_/¯
+
 The Makefile will compile all of the programs when you use the command "make" in the directory containing all of the program's file.
