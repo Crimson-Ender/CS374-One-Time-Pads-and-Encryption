@@ -11,10 +11,10 @@ enc_client: enc_client.c enc_client.h
 enc_server: enc_server.c enc_server.h
 	$(CC) enc_server.c -o enc_server
 
-dec_client: dec_client.c dec_client.h
+dec_client: dec_client.c
 	$(CC) dec_client.c -o dec_client
 
-dec_server: dec_server.c dec_server.h
+dec_server: dec_server.c
 	$(CC) dec_server.c -o dec_server
 
 clean:

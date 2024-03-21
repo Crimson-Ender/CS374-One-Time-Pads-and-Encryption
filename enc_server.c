@@ -1,13 +1,17 @@
+/*
+* Max Baker
+* enc_server.c 
+* March 20th, 2024
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include "enc_server.h"
-
-const char* charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "; 
 
 // Error function used for reporting issues
 void error(const char *msg) {
@@ -29,45 +33,42 @@ void setupAddressStruct(struct sockaddr_in* address, int portNumber){
   address->sin_addr.s_addr = INADDR_ANY;
 }
 
+int get_ASCII_val(int pt_val, int key_val){
+  //calculates the ASCII value
+  int ASCII_val = pt_val + key_val;
+  ASCII_val = ASCII_val % 27;
+  ASCII_val = ASCII_val+65;
+  return ASCII_val;
+}
+
 char* encrypt_message(char* plaintext, char* key){
     char* ciphertext = malloc(sizeof(char)*strlen(plaintext));
-    
-    /*
-    printf("DEBUG: Prior to conversion\n");
-    printf("DEBUG: Plaintext == %s\n", plaintext);
-    printf("DEBUG: strlen(plaintext) == %d\n", strlen(plaintext));
-    printf("DEBUG: key == %s\n", key);
-    */
 
-    //convert both the plaintext and key text into numerial values using their ASCII values
+    fflush(stdout);
+    
     int i;
-    for(i = 0; i<strlen(plaintext); i++){
+    for(i = 0; i < strlen(plaintext); i++){
         int pt_val = plaintext[i] - 65;   //ASCII value for 'A' is 65, so we subtract 65 to ensure 'A' is zero
         if(pt_val == -33){
             pt_val = 26;  //space's ASCII value is 32, so it would be -33 after subtracting 65 from it
         }
         int key_val = key[i] -65;
         if(key_val == -33){
-            key_val == 26;
+            key_val = 26;
         }
 
-        ciphertext[i] = charset[(pt_val + key_val)%27];
+        if(((pt_val+key_val)%27) == 26){
+          ciphertext[i] = 32;
+        }else{
+          ciphertext[i] = get_ASCII_val(pt_val, key_val);
+        }
     }
-
-    /*
-    printf("DEBUG: After conversion\n");
-    printf("DEBUG: Plaintext == %s\n", ciphertext);
-    printf("DEBUG: strlen(plaintext) == %d\n", strlen(plaintext));
-    printf("DEBUG: number of characters conversions == %d\n", i);
-    printf("DEBUG: key == %s\n", key);
-    printf("DEBUG: Ciphertext == %s\n", ciphertext);
-    */
     return ciphertext;
 }
-
+ 
 int main(int argc, char *argv[]){
   int connectionSocket, charsRead;
-  char buffer[256];
+  char buffer[150000];
   struct sockaddr_in serverAddress, clientAddress;
   socklen_t sizeOfClientInfo = sizeof(clientAddress);
 
@@ -103,45 +104,63 @@ int main(int argc, char *argv[]){
     }
 
     //branch off into a child process
+    pid_t child_pid = fork();
+    if(child_pid == 0){
 
-    printf("SERVER: Connected to client running at host %d port %d\n", 
-                          ntohs(clientAddress.sin_addr.s_addr),
-                          ntohs(clientAddress.sin_port));
+    //printf("SERVER: Connected to client running at host %d port %d\n", 
+                          //ntohs(clientAddress.sin_addr.s_addr),
+                          //ntohs(clientAddress.sin_port));
 
     // Get the message from the client and display it
-    memset(buffer, '\0', 256);
+    memset(buffer, '\0', 150000);
     // Read the client's message from the socket
-    charsRead = recv(connectionSocket, buffer, 255, 0); 
+    charsRead = recv(connectionSocket, buffer, 150000, 0); 
     if (charsRead < 0){
       error("ERROR reading from socket");
     }
 
-    char* plaintext[strlen(buffer)];
-    strcpy(plaintext, buffer);
-    printf("SERVER: I received this from the client: \"%s\"\n", plaintext);
+    //printf("strlen(buffer) == %d\n",strlen(buffer));
 
-    // Get the message from the client and display it
-    memset(buffer, '\0', 256);
-    // Read the client's message from the socket
-    charsRead = recv(connectionSocket, buffer, 255, 0); 
-    if (charsRead < 0){
-      error("ERROR reading from socket");
+    //allocates the memory so the string can be parsed properly (i tried doing this without malloc but it got fucky)
+    char* str_to_parse = malloc(sizeof(char)*15000);
+    char* id = malloc(sizeof(char)*150);
+    char* plaintext = malloc(sizeof(char)*75000);
+    char* key = malloc(sizeof(char)*75000);
+    strcpy(str_to_parse, buffer);
+    char* save_string = str_to_parse;
+
+    //parse the buffer into usable strings
+    id = strtok_r(str_to_parse, "##", &save_string);
+    plaintext = strtok_r(NULL, "##", &save_string);
+    //printf("strlen(plaintext) == %d\n", strlen(plaintext));
+    key = strtok_r(NULL, "##", &save_string);
+
+    //check if the right program is connected
+    if(strstr(id, "dec_client")!=NULL){
+      close(connectionSocket);
+      error("ERROR invalid client connected");
     }
 
-    char* key[strlen(buffer)];
-    strcpy(key, buffer);
-    printf("SERVER: I received this from the client: \"%s\"\n", key);
+    char* ciphertext = encrypt_message(plaintext, key); //encrypt the message using the algorithm in encrypt_message()
 
-    char* ciphertext = encrypt_message(plaintext, key);
-    // Send a Success message back to the client
-    charsRead = send(connectionSocket, ciphertext, strlen(ciphertext), 0); 
-    
+    //clear out the buffer to send data back to the client
+    memset(buffer, '\0', 150000);
+    strcpy(buffer, ciphertext);
+    fflush(stdout);
+
+    //send data back to the client
+    charsRead = send(connectionSocket, buffer, strlen(buffer), 0); 
     if (charsRead < 0){
       error("ERROR writing to socket");
     }
-    // Close the connection socket for this client
+
+    //end the child process
+    free(ciphertext);
+    exit(0);
+    break;
+    }
+    wait(NULL);
     close(connectionSocket);
-    free(ciphertext); 
   }
   // Close the listening socket
   close(listenSocket); 

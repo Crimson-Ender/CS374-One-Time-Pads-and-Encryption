@@ -18,10 +18,10 @@ const char* charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
 
 char* generate_key(int key_length){
     
-    char* key = malloc(sizeof(char)*key_length); //allocate memory for key
+    char* key = malloc(sizeof(char)*key_length+1); //allocate memory for key
     srand(time(NULL)); //seed the random number generator to generate a random key
 
-    for(int i = 0; i<key_length;i++){
+    for(int i = 0; i<key_length+1;i++){
         int rand_idx = rand()%27; //generates a number between 0-26, the valid indicies for charset
         key[i] = charset[rand_idx]; //populates the key
     }    
