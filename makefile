@@ -5,10 +5,10 @@ all: keygen enc_client enc_server dec_client dec_server
 keygen: keygen.c
 	$(CC) keygen.c -o keygen
 
-enc_client: enc_client.c enc_client.h
+enc_client: enc_client.c
 	$(CC) enc_client.c -o enc_client
 
-enc_server: enc_server.c enc_server.h
+enc_server: enc_server.c
 	$(CC) enc_server.c -o enc_server
 
 dec_client: dec_client.c
